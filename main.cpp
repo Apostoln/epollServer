@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <cassert>
 #include <vector>
+#include <exception>
 
 
 const size_t PORT = 12345;
@@ -15,6 +16,11 @@ const size_t BUFFER_SIZE = 1024;
 enum class TransportProtocol {
     TCP,
     UDP
+};
+
+class SocketException : public std::runtime_error { //todo: replace to std::system_error
+    public:
+        SocketException(const char* msg): std::runtime_error(msg) {}
 };
 
 class Socket {
@@ -35,7 +41,7 @@ class Socket {
                               : SOCK_DGRAM);
             mSocketFd = ::socket(AF_INET, SOCK_STREAM, 0);
             if (mSocketFd < 0) {
-                //TODO : Exception
+                throw SocketException("Can't create socket");
             }
 
         }
@@ -50,14 +56,14 @@ class Socket {
                             reinterpret_cast<sockaddr*>(&socketAddress),
                             sizeof(socketAddress));
             if (rc < 0) {
-                //TODO : Exception
+                throw SocketException("Can't bind socket");
             }
         }
 
         void listen() {
             int rc = ::listen(mSocketFd, SOMAXCONN);
             if (rc < 0) {
-                //TODO : Exception
+                throw SocketException("Can't listen socket");
             }
         }
 
@@ -69,12 +75,8 @@ class Socket {
             char buffer[BUFFER_SIZE];
 
             size_t receivedBytes = ::recv(mSocketFd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
-            if (receivedBytes == 0) {
-                //TODO: The return value will be 0 when the peer has performed an orderly shutdown.
-                return {};
-            }
-            else if ( receivedBytes < 0) {
-                //TODO exception
+            if ( receivedBytes < 0) {
+                throw SocketException("Can't receive data from socket");
             }
             return {std::begin(buffer), std::begin(buffer) + receivedBytes};
         }
@@ -82,7 +84,7 @@ class Socket {
         void send(const std::string& msg) {
             size_t sentBytes = ::send(mSocketFd, msg.data(), msg.size(), MSG_NOSIGNAL);
             if (sentBytes < 0) {
-                //TODO exception
+                throw SocketException("Can't send socket");
             }
         }
 

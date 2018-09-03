@@ -8,10 +8,7 @@
 #include <vector>
 #include <exception>
 
-
 const size_t PORT = 12345;
-const size_t BUFFER_SIZE = 1024;
-
 
 enum class TransportProtocol {
     TCP,
@@ -29,6 +26,7 @@ class Socket {
 
     private:
         FileDescriptor mSocketFd = 0;
+        static const size_t BUFFER_SIZE = 1024;
 
     public:
         Socket(FileDescriptor fd): mSocketFd(fd) {}
@@ -73,7 +71,6 @@ class Socket {
 
         std::string receive() {
             char buffer[BUFFER_SIZE];
-
             size_t receivedBytes = ::recv(mSocketFd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
             if ( receivedBytes < 0) {
                 throw SocketException("Can't receive data from socket");

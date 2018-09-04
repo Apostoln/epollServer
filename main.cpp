@@ -26,18 +26,23 @@ class Socket {
 
     private:
         FileDescriptor mSocketFd = 0;
+        bool mOpened = true;
         static const size_t BUFFER_SIZE = 1024;
 
     public:
         Socket(FileDescriptor fd): mSocketFd(fd) {
+            std::cout << "Socket(fd) " << this << " " << mSocketFd << std::endl;
         }
 
-        Socket(TransportProtocol protocol = TransportProtocol::TCP) {
-            assert(protocol == TransportProtocol::TCP);
+        Socket(Socket&& other): mSocketFd(other.getFd()) {
+            std::cout << "Socket(Socket&&) " << this << " from " << &other << " , " << mSocketFd << std::endl;
+            other.mSocketFd = -1;
+            other.mOpened = false;
+        }
 
-            auto socketType = (protocol == TransportProtocol::TCP
-                              ? SOCK_STREAM
-                              : SOCK_DGRAM);
+        Socket(const Socket&) = delete;
+
+        Socket(TransportProtocol protocol = TransportProtocol::TCP) {
             mSocketFd = ::socket(AF_INET, SOCK_STREAM, 0);
             if (mSocketFd < 0) {
                 throw SocketException("Can't create socket");
@@ -46,13 +51,14 @@ class Socket {
             int opt_val = 1;
             setsockopt(mSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof opt_val);
 
+            std::cout << "Socket() " << this << " " << mSocketFd << std::endl;
         }
 
         void bind(int port) {
             sockaddr_in socketAddress;
             socketAddress.sin_family = AF_INET;
-            socketAddress.sin_port = ::htons(PORT);
-            socketAddress.sin_addr.s_addr = ::htons(INADDR_ANY);
+            socketAddress.sin_port = htons(PORT);
+            socketAddress.sin_addr.s_addr = htons(INADDR_ANY);
 
             int rc = ::bind(mSocketFd,
                             reinterpret_cast<sockaddr*>(&socketAddress),
@@ -76,8 +82,7 @@ class Socket {
         std::string receive() {
             char buffer[BUFFER_SIZE];
             int receivedBytes = ::recv(mSocketFd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
-            if ( receivedBytes < 0) {
-                std::cerr << receivedBytes << " " << strerror(errno) << std::endl;
+            if (receivedBytes < 0) {
                 throw SocketException("Can't receive data from socket");
             }
             return {std::begin(buffer), std::begin(buffer) + receivedBytes};
@@ -91,13 +96,29 @@ class Socket {
             }
         }
 
+        int getFd() const {
+            return mSocketFd;
+        }
+
         operator int() {
             return mSocketFd;
         }
 
         ~Socket() {
-            // There is possible bug here - socket is closed after destroying even if fd is copied to another object
-            ::close(mSocketFd); // TODO: correct shutdown
+            if (mOpened) { // Todo: looks like crutch
+                std::cout << "Socket destr " << this << " " << mSocketFd << std::endl;
+                // Todo: There is possible bug here - socket is closed after destroying even if fd is copied to another object
+                // Todo: Solved? Solved by using moving and delete copy constructor
+                int rc = ::shutdown(mSocketFd, SHUT_RDWR);
+                if (rc < 0) {
+                    throw SocketException("Can't shutdown socket"); //Todo: exceptions in destructor?
+                }
+
+                rc = ::close(mSocketFd);
+                if (rc < 0) {
+                    throw SocketException("Can't close socket");
+                }
+            }
 
         }
 };
@@ -107,8 +128,11 @@ class Server {
         Socket mMasterSocket;
         size_t mPort;
 
+        std::vector<Socket> mSlaveSockets;
+
     public:
-        Server(size_t port): mPort(port) {};
+        Server(size_t port): mPort(port) {
+        }
 
         void run() {
             mMasterSocket.bind(mPort);
@@ -116,10 +140,11 @@ class Server {
 
             std::cout << "Server run on localhost:" << mPort << std::endl;
 
-            while (Socket clientSocket = mMasterSocket.accept()) {
+            while(Socket clientSocket = mMasterSocket.accept()) {
                 auto message = clientSocket.receive();
                 std::cout << message << std::endl;
                 clientSocket.send(message);
+                //mSlaveSockets.push_back(std::move(clientSocket));
             }
         }
 };

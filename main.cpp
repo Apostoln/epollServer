@@ -29,7 +29,8 @@ class Socket {
         static const size_t BUFFER_SIZE = 1024;
 
     public:
-        Socket(FileDescriptor fd): mSocketFd(fd) {}
+        Socket(FileDescriptor fd): mSocketFd(fd) {
+        }
 
         Socket(TransportProtocol protocol = TransportProtocol::TCP) {
             assert(protocol == TransportProtocol::TCP);
@@ -41,6 +42,9 @@ class Socket {
             if (mSocketFd < 0) {
                 throw SocketException("Can't create socket");
             }
+
+            int opt_val = 1;
+            setsockopt(mSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof opt_val);
 
         }
 
@@ -71,16 +75,18 @@ class Socket {
 
         std::string receive() {
             char buffer[BUFFER_SIZE];
-            size_t receivedBytes = ::recv(mSocketFd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
+            int receivedBytes = ::recv(mSocketFd, buffer, BUFFER_SIZE, MSG_NOSIGNAL);
             if ( receivedBytes < 0) {
+                std::cerr << receivedBytes << " " << strerror(errno) << std::endl;
                 throw SocketException("Can't receive data from socket");
             }
             return {std::begin(buffer), std::begin(buffer) + receivedBytes};
         }
 
         void send(const std::string& msg) {
-            size_t sentBytes = ::send(mSocketFd, msg.data(), msg.size(), MSG_NOSIGNAL);
+            int sentBytes = ::send(mSocketFd, msg.data(), msg.size(), MSG_NOSIGNAL);
             if (sentBytes < 0) {
+                std::cerr << sentBytes << " " << strerror(errno) << std::endl;
                 throw SocketException("Can't send socket");
             }
         }
@@ -90,14 +96,15 @@ class Socket {
         }
 
         ~Socket() {
+            // There is possible bug here - socket is closed after destroying even if fd is copied to another object
             ::close(mSocketFd); // TODO: correct shutdown
+
         }
 };
 
 class Server {
     private:
         Socket mMasterSocket;
-        std::vector<Socket> mSlaveSockets;
         size_t mPort;
 
     public:
@@ -107,10 +114,12 @@ class Server {
             mMasterSocket.bind(mPort);
             mMasterSocket.listen();
 
-            while(Socket clientSocket = mMasterSocket.accept()) {
-                mSlaveSockets.push_back(clientSocket);
+            std::cout << "Server run on localhost:" << mPort << std::endl;
+
+            while (Socket clientSocket = mMasterSocket.accept()) {
                 auto message = clientSocket.receive();
                 std::cout << message << std::endl;
+                clientSocket.send(message);
             }
         }
 };

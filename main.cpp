@@ -10,11 +10,6 @@
 
 const size_t PORT = 12345;
 
-enum class TransportProtocol {
-    TCP,
-    UDP
-};
-
 class SocketException : public std::runtime_error { //todo: replace to std::system_error
     public:
         SocketException(const char* msg): std::runtime_error(msg) {}
@@ -52,7 +47,7 @@ class Socket {
 
         Socket(const Socket&) = delete;
 
-        Socket(TransportProtocol protocol = TransportProtocol::TCP) {
+        Socket() {
             mSocketFd = ::socket(AF_INET, SOCK_STREAM, 0);
             if (mSocketFd < 0) {
                 throw SocketException("Can't create socket");

@@ -18,6 +18,16 @@ enum class TransportProtocol {
 class SocketException : public std::runtime_error { //todo: replace to std::system_error
     public:
         SocketException(const char* msg): std::runtime_error(msg) {}
+
+        virtual const char* what() const noexcept override {
+            std::string tmp = this->std::runtime_error::what();
+            tmp += "; errno = ";
+            tmp += std::to_string(errno);
+            tmp += "; ";
+            tmp += strerror(errno);
+            char* result = new char[tmp.length() + 1];
+            return strcpy(result, tmp.c_str());
+        }
 };
 
 class Socket {
@@ -107,19 +117,19 @@ class Socket {
         ~Socket() {
             if (mOpened) { // Todo: looks like crutch
                 std::cout << "Socket destr " << this << " " << mSocketFd << std::endl;
-                // Todo: There is possible bug here - socket is closed after destroying even if fd is copied to another object
-                // Todo: Solved? Solved by using moving and delete copy constructor
+
                 int rc = ::shutdown(mSocketFd, SHUT_RDWR);
                 if (rc < 0) {
-                    throw SocketException("Can't shutdown socket"); //Todo: exceptions in destructor?
+                    auto e = SocketException("Can't shutdown socket");
+                    std::cout << e.what() << std::endl;
                 }
 
                 rc = ::close(mSocketFd);
                 if (rc < 0) {
-                    throw SocketException("Can't close socket");
+                    auto e = SocketException("Can't close socket");
+                    std::cout << e.what() << std::endl;
                 }
             }
-
         }
 };
 
@@ -150,8 +160,12 @@ class Server {
 };
 
 int main() {
-    Server server(PORT);
-    server.run();
-
+    try {
+        Server server(PORT);
+        server.run();
+    }
+    catch (SocketException& e) {
+        std::cout << e.what() << std::endl;
+    }
     return 0;
 }

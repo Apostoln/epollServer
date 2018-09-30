@@ -34,7 +34,7 @@ public:
                 if (socket == mMasterSocket) { //todo: add event to condition
                     Socket newClientSocket = mMasterSocket.accept();
                     mPoll.add(newClientSocket, POLLIN);
-                    mSlaveSockets.push_back(socket);
+                    mSlaveSockets.push_back(newClientSocket);
                 }
                 else { //todo: add event to condition
                     auto message = socket.receive();

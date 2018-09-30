@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include <poll.h>
+#include <cassert>
 
 #include "Socket.h"
 
@@ -41,7 +42,8 @@ class Poll {
 
         std::vector<Socket> select(int timeout) {
             std::cout << "In poll " << mPolledSockets.size() << std::endl;
-            int rc = ::poll(getRawPollfd().data(), getRawPollfd().size(), timeout); //TODO: Bug? pollfd
+            auto rawPollfd = getRawPollfd();
+            int rc = ::poll(rawPollfd.data(), rawPollfd.size(), timeout); //TODO: Bug? pollfd
             if (rc < 0) {
                 throw SocketException("Poll select failed");
             }
@@ -50,12 +52,21 @@ class Poll {
             }
             else {
                 std::vector<Socket> result;
-                for(auto socket : mPolledSockets) {
-                    if (socket.revents == socket.events) {
+                for(auto socket : rawPollfd) {
+                    if (socket.revents == socket.events) { //here
                         socket.revents = 0;
-                        result.push_back(socket.getSocket());
+                        auto it = find_if(mPolledSockets.begin(), mPolledSockets.end(), [&socket](PollSocket& other) {
+                            return other.fd == socket.fd;
+                        });
+                        if (it != mPolledSockets.end()) {
+                            result.push_back(it->getSocket());
+                        }
+                        else {
+                            assert(false);
+                        }
                     }
                 }
+                assert(!result.empty());
                 return result;
             }
         }

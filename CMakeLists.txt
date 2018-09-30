@@ -3,4 +3,4 @@ project(epollServer)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-O0")
-add_executable(epollServer main.cpp Socket.h Server.h)
+add_executable(epollServer main.cpp Socket.h Server.h Poll.h)

@@ -4,13 +4,14 @@
 #include <vector>
 #include <set>
 #include "Socket.h"
+#include "Poll.h"
 
 class Server {
 private:
     Socket mMasterSocket;
     size_t mPort;
 
-    //Poll mPoll;
+    Poll mPoll;
 
     std::vector<Socket> mSlaveSockets;
 
@@ -24,36 +25,23 @@ public:
 
         std::cout << "Server run on localhost:" << mPort << std::endl;
 
-/*
- * Draft of poll:
-        mPoll.add(Socket, Poll::POLLIN);
+        mPoll.add(mMasterSocket, POLLIN);
         while(true) {
-            int timeout = 10;
-            std::set<Socket> result = mPoll.select(timeout);
+            const static int TIMEOUT = 10 * 1000;  //s
+            std::vector<Socket> result = mPoll.select(TIMEOUT);
+            std::cout << "Result size: " << result.size() << std::endl;
             for(auto socket : result) {
                 if (socket == mMasterSocket) { //todo: add event to condition
                     Socket newClientSocket = mMasterSocket.accept();
-                    mPoll.add(newClientSocket, Poll::POLLIN);
-                    mSlaveSockets.push_back(Socket);
+                    mPoll.add(newClientSocket, POLLIN);
+                    mSlaveSockets.push_back(socket);
                 }
                 else { //todo: add event to condition
                     auto message = socket.receive();
                     std::cout << message << std::endl;
                     socket.send(message);
                 }
-
             }
-
-        }
-*/
-
-
-
-        while(Socket clientSocket = mMasterSocket.accept()) {
-            auto message = clientSocket.receive();
-            std::cout << message << std::endl;
-            clientSocket.send(message);
-            //mSlaveSockets.push_back(std::move(clientSocket));
         }
 
 

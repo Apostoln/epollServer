@@ -77,6 +77,7 @@ class SocketImpl {
         }
 
         FileDescriptor accept() {
+            std::cout << "accept()" << std::endl;
             return ::accept(mSocketFd, nullptr, nullptr);
         }
 

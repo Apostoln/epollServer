@@ -19,6 +19,12 @@ public:
     Server(size_t port): mPort(port) {
     }
 
+    void sendToClients(const std::string& message) {
+        std::for_each(mSlaveSockets.begin(), mSlaveSockets.end(), [&message](Socket& socket) {
+            socket.send(message);
+        });
+    }
+
     void run() {
         mMasterSocket.bind(mPort);
         mMasterSocket.listen();
@@ -45,7 +51,7 @@ public:
                     }
                     else {
                         std::cout << message << std::endl;
-                        socket.send(message);
+                        sendToClients(message);
                     }
                 }
             }

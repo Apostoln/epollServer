@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <memory>
+#include <arpa/inet.h>
 
 using FileDescriptor = int;
 
@@ -31,6 +32,9 @@ public:
 class SocketImpl {
     private:
         FileDescriptor mSocketFd = 0;
+        int mPort;
+        std::string mIp;
+
         static const size_t BUFFER_SIZE = 1024;
 
     public:
@@ -50,9 +54,19 @@ class SocketImpl {
             std::cout << "SocketImpl(fd) " << this << " " << mSocketFd << std::endl;
         }
 
+        SocketImpl(FileDescriptor fd, sockaddr_in socketAddress): mSocketFd(fd) {
+            std::cout << "SocketImpl(fd, socketAddress) " << this << " " << mSocketFd << std::endl;
+            mPort = ntohs(socketAddress.sin_port);
+
+            //Ip from uint32_t to std::string
+            char tmp[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(socketAddress.sin_addr), tmp, INET_ADDRSTRLEN);
+            mIp = tmp;
+        }
+
         SocketImpl(SocketImpl&& other): mSocketFd(other.getFd()) {
             std::cout << "SocketImpl(SocketImpl&&) " << this << " from " << &other << " , " << mSocketFd << std::endl;
-            other.mSocketFd = -1;
+            other.mSocketFd = -1; //todo: what?
         }
 
         void bind(int port) {
@@ -76,9 +90,12 @@ class SocketImpl {
             }
         }
 
-        FileDescriptor accept() {
+        std::tuple<int, sockaddr_in> accept() {
+            sockaddr_in socketAdress;
+            unsigned int sizeOfSocketAdress = sizeof(socketAdress);
+            int res = ::accept(mSocketFd, (struct sockaddr *)&socketAdress, &sizeOfSocketAdress);
             std::cout << "accept()" << std::endl;
-            return ::accept(mSocketFd, nullptr, nullptr);
+            return std::tuple(res, socketAdress);
         }
 
         std::string receive() {
@@ -104,6 +121,14 @@ class SocketImpl {
 
         FileDescriptor getFd() const {
             return mSocketFd;
+        }
+
+        std::string getIp() {
+            return mIp;
+        }
+
+        int getPort() {
+            return mPort;
         }
 
         operator int() {
@@ -141,6 +166,11 @@ class Socket {
 
         }
 
+
+        Socket(FileDescriptor fd, sockaddr_in socketAddress): mSocketPtr{new SocketImpl{fd, socketAddress}} {
+
+        }
+
         Socket(const Socket& other): mSocketPtr{other.mSocketPtr} {
 
         }
@@ -154,7 +184,7 @@ class Socket {
         }
 
         Socket accept() {
-            return {mSocketPtr->accept()};
+            return std::make_from_tuple<Socket>(mSocketPtr->accept());
         }
 
         std::string receive() {
@@ -167,6 +197,14 @@ class Socket {
 
         FileDescriptor getFd() const {
             return mSocketPtr->getFd();
+        }
+
+        std::string getIp() {
+            return mSocketPtr->getIp();
+        }
+
+        int getPort() {
+            return mSocketPtr->getPort();
         }
 
         operator int() {

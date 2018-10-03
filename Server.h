@@ -50,7 +50,7 @@ public:
                                             mSlaveSockets.end());
                     }
                     else {
-                        std::cout << message << std::endl;
+                        std::cout << socket.getIp() << ":" << socket.getPort() << ">>" << message << std::endl;
                         sendToClients(message);
                     }
                 }

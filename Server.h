@@ -40,8 +40,8 @@ public:
                     auto message = socket.receive();
                     if(message.empty()) {
                         mPoll.remove(socket);
-                        //mSlaveSockets.erase(std::remove(mSlaveSockets.begin(), mSlaveSockets.end(), socket),
-                        //                    mSlaveSockets.end());
+                        mSlaveSockets.erase(std::remove(mSlaveSockets.begin(), mSlaveSockets.end(), socket),
+                                            mSlaveSockets.end());
                     }
                     else {
                         std::cout << message << std::endl;

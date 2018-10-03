@@ -173,6 +173,10 @@ class Socket {
             return static_cast<int>(*mSocketPtr);
         }
 
+        bool operator == (const Socket& other) {
+            return this->getFd() == other.getFd();
+        }
+
 };
 
 #endif //EPOLLSERVER_SOCKET_H

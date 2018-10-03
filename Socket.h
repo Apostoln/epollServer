@@ -87,6 +87,10 @@ class SocketImpl {
             if (receivedBytes < 0) {
                 throw SocketException("Can't receive data from socket");
             }
+            if (receivedBytes == 0) {
+                //Other peer has gracefully disconnected
+                return {};
+            }
             return {std::begin(buffer), std::begin(buffer) + receivedBytes};
         }
 

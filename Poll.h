@@ -40,10 +40,19 @@ class Poll {
             mPolledSockets.emplace_back(socket, event);
         }
 
+        void remove(Socket socket) {
+            mPolledSockets.erase(std::remove_if(mPolledSockets.begin(),
+                                                mPolledSockets.end(),
+                                                [&socket](PollSocket ps) {
+                                                    return ps.fd == socket.getFd();
+                                                }),
+                                 mPolledSockets.end());
+        }
+
         std::vector<Socket> select(int timeout) {
-            std::cout << "In poll " << mPolledSockets.size() << std::endl;
+            //std::cout << "In poll " << mPolledSockets.size() << std::endl;
             auto rawPollfd = getRawPollfd();
-            int rc = ::poll(rawPollfd.data(), rawPollfd.size(), timeout); //TODO: Bug? pollfd
+            int rc = ::poll(rawPollfd.data(), rawPollfd.size(), timeout);
             if (rc < 0) {
                 throw SocketException("Poll select failed");
             }
@@ -53,8 +62,9 @@ class Poll {
             else {
                 std::vector<Socket> result;
                 for(auto socket : rawPollfd) {
-                    if (socket.revents == socket.events) { //here
+                    if (socket.revents == socket.events) {
                         socket.revents = 0;
+                        //todo: replace this crutch
                         auto it = find_if(mPolledSockets.begin(), mPolledSockets.end(), [&socket](PollSocket& other) {
                             return other.fd == socket.fd;
                         });

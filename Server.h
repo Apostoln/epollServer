@@ -29,7 +29,7 @@ public:
         while(true) {
             const static int TIMEOUT = 10 * 1000;  //s
             std::vector<Socket> result = mPoll.select(TIMEOUT);
-            std::cout << "Result size: " << result.size() << std::endl;
+            //std::cout << "Result size: " << result.size() << std::endl;
             for(auto socket : result) {
                 if (socket == mMasterSocket) { //todo: add event to condition
                     Socket newClientSocket = mMasterSocket.accept();
@@ -38,13 +38,18 @@ public:
                 }
                 else { //todo: add event to condition
                     auto message = socket.receive();
-                    std::cout << message << std::endl;
-                    socket.send(message);
+                    if(message.empty()) {
+                        mPoll.remove(socket);
+                        //mSlaveSockets.erase(std::remove(mSlaveSockets.begin(), mSlaveSockets.end(), socket),
+                        //                    mSlaveSockets.end());
+                    }
+                    else {
+                        std::cout << message << std::endl;
+                        socket.send(message);
+                    }
                 }
             }
         }
-
-
     }
 };
 #endif //EPOLLSERVER_SERVER_H
